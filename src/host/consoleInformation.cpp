@@ -415,14 +415,32 @@ void CONSOLE_INFORMATION::ShutdownMidiAudio()
 // - a CHAR_INFO containing legacy information about the cell
 CHAR_INFO CONSOLE_INFORMATION::AsCharInfo(const OutputCellView& cell) const noexcept
 {
-    CHAR_INFO ci{ 0 };
-    ci.Char.UnicodeChar = Utf16ToUcs2(cell.Chars());
+    CHAR_INFO ci;
+    const auto& chars = cell.Chars();
+    const auto dbcsAttr = cell.DbcsAttr();
+
+    ci.Char.UnicodeChar = UNICODE_REPLACEMENT;
+    if (chars.size() == 1)
+    {
+        ci.Char.UnicodeChar = chars[0];
+    }
+    if (chars.size() == 2)
+    {
+        if (dbcsAttr.IsLeading())
+        {
+            ci.Char.UnicodeChar = chars[0];
+        }
+        else if (dbcsAttr.IsTrailing())
+        {
+            ci.Char.UnicodeChar = chars[1];
+        }
+    }
 
     // If the current text attributes aren't legacy attributes, then
     //    use gci to look up the correct legacy attributes to use
     //    (for mapping RGB values to the nearest table value)
     const auto& attr = cell.TextAttr();
     ci.Attributes = attr.GetLegacyAttributes();
-    ci.Attributes |= cell.DbcsAttr().GeneratePublicApiAttributeFormat();
+    ci.Attributes |= dbcsAttr.GeneratePublicApiAttributeFormat();
     return ci;
 }

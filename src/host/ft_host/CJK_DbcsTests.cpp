@@ -1491,11 +1491,28 @@ void DbcsWriteRead::PrepReadConsoleOutput(_In_ const unsigned int uiCodePage,
     case DbcsWriteRead::WriteMode::WriteConsoleOutputFunc:
     {
         // If we wrote with WriteConsoleOutput*, things are going to be munged depending on the font and the A/W status of both the write and the read.
-        if (!fReadWithUnicode)
+        // If we read it back with the W functions, both the font and the original write mode (A vs. W) matter
+        // If we read it back with the A functions, the font might matter.
+        // We will get different results dependent on whether the original text was written with the W or A method.
+        if (fWriteWithUnicode)
         {
-            // If we read it back with the A functions, the font might matter.
-            // We will get different results dependent on whether the original text was written with the W or A method.
-            if (fWriteWithUnicode)
+            if (fReadWithUnicode)
+            {
+                if (fIsTrueTypeFont)
+                {
+                    // When written with WriteConsoleOutputW and read back with ReadConsoleOutputW when the font is TrueType,
+                    // we will get a deduplicated set of Unicode characters with no lead/trailing markings and space padded at the end.
+                    DbcsWriteRead::PrepPattern::SpacePaddedDedupeW(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
+                }
+                else
+                {
+                    // When written with WriteConsoleOutputW and read back with ReadConsoleOutputW when the font is Raster,
+                    // we will get a deduplicated set of Unicode characters with no lead/trailing markings and space padded at the end...
+                    // ... except something weird happens with truncation (TODO figure out what)
+                    DbcsWriteRead::PrepPattern::SpacePaddedDedupeTruncatedW(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
+                }
+            }
+            else
             {
                 if (fIsTrueTypeFont)
                 {
@@ -1511,41 +1528,17 @@ void DbcsWriteRead::PrepReadConsoleOutput(_In_ const unsigned int uiCodePage,
                     DbcsWriteRead::PrepPattern::AStompsWNegativeOnePatternTruncateSpacePadded(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
                 }
             }
-            else
-            {
-                // When written with WriteConsoleOutputA and read back with ReadConsoleOutputA,
-                // we will get back the double-byte sequences appropriately labeled with leading/trailing bytes.
-                //DbcsWriteRead::PrepPattern::A(pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
-                DbcsWriteRead::PrepPattern::AOnDoubledWNegativeOneTrailing(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
-            }
         }
         else
         {
-            // If we read it back with the W functions, both the font and the original write mode (A vs. W) matter
-            if (fIsTrueTypeFont)
+            if (fReadWithUnicode)
             {
-                if (fWriteWithUnicode)
+                if (fIsTrueTypeFont)
                 {
-                    // When written with WriteConsoleOutputW and read back with ReadConsoleOutputW when the font is TrueType,
-                    // we will get a deduplicated set of Unicode characters with no lead/trailing markings and space padded at the end.
-                    DbcsWriteRead::PrepPattern::SpacePaddedDedupeW(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
-                }
-                else
-                {
-                    // When written with WriteConsoleOutputW and read back with ReadConsoleOutputA when the font is TrueType,
+                    // When written with WriteConsoleOutputA and read back with ReadConsoleOutputW when the font is TrueType,
                     // we will get back Unicode characters doubled up and marked with leading and trailing bytes...
                     // ... except all the trailing bytes character values will be -1.
                     DbcsWriteRead::PrepPattern::DoubledWNegativeOneTrailing(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
-                }
-            }
-            else
-            {
-                if (fWriteWithUnicode)
-                {
-                    // When written with WriteConsoleOutputW and read back with ReadConsoleOutputW when the font is Raster,
-                    // we will get a deduplicated set of Unicode characters with no lead/trailing markings and space padded at the end...
-                    // ... except something weird happens with truncation (TODO figure out what)
-                    DbcsWriteRead::PrepPattern::SpacePaddedDedupeTruncatedW(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
                 }
                 else
                 {
@@ -1553,6 +1546,13 @@ void DbcsWriteRead::PrepReadConsoleOutput(_In_ const unsigned int uiCodePage,
                     // we will get back de-duplicated Unicode characters with no lead / trail markings.The extra array space will remain null.
                     DbcsWriteRead::PrepPattern::NullPaddedDedupeW(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
                 }
+            }
+            else
+            {
+                // When written with WriteConsoleOutputA and read back with ReadConsoleOutputA,
+                // we will get back the double-byte sequences appropriately labeled with leading/trailing bytes.
+                //DbcsWriteRead::PrepPattern::A(pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
+                DbcsWriteRead::PrepPattern::AOnDoubledWNegativeOneTrailing(uiCodePage, pszTestData, wAttrOriginal, wAttrWritten, rgciExpected, cExpectedNeeded);
             }
         }
         break;

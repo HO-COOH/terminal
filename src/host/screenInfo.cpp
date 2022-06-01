@@ -9,7 +9,6 @@
 #include "_output.h"
 #include "misc.h"
 #include "handle.h"
-#include "../buffer/out/CharRow.hpp"
 
 #include <cmath>
 #include "../interactivity/inc/ServiceLocator.hpp"
@@ -2658,7 +2657,7 @@ void SCREEN_INFORMATION::InitializeCursorRowAttributes()
         // the current background color, but with no meta attributes set.
         auto fillAttributes = GetAttributes();
         fillAttributes.SetStandardErase();
-        row.GetAttrRow().SetAttrToEnd(0, fillAttributes);
+        row.SetAttrToEnd(0, fillAttributes);
         // The row should also be single width to start with.
         row.SetLineRendition(LineRendition::SingleWidth);
     }
