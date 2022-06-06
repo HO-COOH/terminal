@@ -325,7 +325,7 @@ bool TextBuffer::_AssertValidDoubleByteSequence(const DbcsAttribute dbcsAttribut
         // Erase previous character into an N type.
         try
         {
-            prevRow.ClearColumn(coordPrevPosition.X);
+            prevRow.ClearCell(coordPrevPosition.X);
         }
         catch (...)
         {

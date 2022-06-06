@@ -114,7 +114,7 @@ class ROW final
 public:
     ROW(wchar_t* buffer, uint16_t* indices, uint16_t rowWidth, const TextAttribute& fillAttribute);
     ~ROW();
-    
+
     void SetWrapForced(const bool wrap) noexcept { _wrapForced = wrap; }
     bool WasWrapForced() const noexcept { return _wrapForced; }
     void SetDoubleBytePadded(const bool doubleBytePadded) noexcept { _doubleBytePadded = doubleBytePadded; }
@@ -123,19 +123,16 @@ public:
     void SetLineRendition(const LineRendition lineRendition) noexcept { _lineRendition = lineRendition; }
 
     bool Reset(const TextAttribute& Attr);
-    void ClearColumn(const til::CoordType column);
-    void ClearCell(const til::CoordType column);
-    OutputCellIterator WriteCells(OutputCellIterator it, const til::CoordType index, const std::optional<bool> wrap = std::nullopt, std::optional<til::CoordType> limitRight = std::nullopt);
-    bool SetAttrToEnd(const til::CoordType beginIndex, const TextAttribute attr);
-    void ReplaceAttrs(const TextAttribute& toBeReplacedAttr, const TextAttribute& replaceWith);
-    void Replace(const til::CoordType beginIndex, const til::CoordType endIndex, const TextAttribute& newAttr);
+    void ClearCell(til::CoordType column);
+    OutputCellIterator WriteCells(OutputCellIterator it, til::CoordType index, std::optional<bool> wrap = std::nullopt, std::optional<til::CoordType> limitRight = std::nullopt);
+    bool SetAttrToEnd(til::CoordType beginIndex, TextAttribute attr);
     void ReplaceCharacters(til::CoordType x, til::CoordType width, const std::wstring_view& chars);
 
-    void Resize(wchar_t* chars, uint16_t* indices, const uint16_t newWidth);
+    void Resize(wchar_t* chars, uint16_t* indices, uint16_t newWidth);
     void TransferAttributes(const til::small_rle<TextAttribute, uint16_t, 1>& attr, til::CoordType newWidth);
 
     const til::small_rle<TextAttribute, uint16_t, 1>& Attributes() const noexcept;
-    TextAttribute GetAttrByColumn(const til::CoordType column) const;
+    TextAttribute GetAttrByColumn(til::CoordType column) const;
     std::vector<uint16_t> GetHyperlinks() const;
     uint16_t size() const noexcept;
     til::CoordType MeasureLeft() const noexcept;
@@ -158,9 +155,10 @@ public:
 
 private:
     void _reset() noexcept;
+    void _replaceAttributes(til::CoordType beginIndex, til::CoordType endIndex, const TextAttribute& newAttr);
     void _resizeChars(uint16_t ch0, uint16_t ch1, size_t newCh1, uint16_t col3);
     [[nodiscard]] bool* _getDbcsPaddedColumns() noexcept;
-    
+
     wchar_t* _charsBuffer = nullptr;
     wchar_t* _chars = nullptr;
     uint16_t* _indices = nullptr;
