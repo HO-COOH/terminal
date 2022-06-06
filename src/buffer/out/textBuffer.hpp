@@ -212,7 +212,6 @@ public:
 
 private:
     void _UpdateSize();
-    void _RefreshRowIDs(std::optional<til::CoordType> newRowWidth);
     void _SetFirstRowIndex(const til::CoordType FirstRowIndex) noexcept;
     til::point _GetPreviousFromCursor() const noexcept;
     void _SetWrapOnCurrentRow() noexcept;
@@ -221,7 +220,6 @@ private:
     bool _PrepareForDoubleByteSequence(const DbcsAttribute dbcsAttribute);
     bool _AssertValidDoubleByteSequence(const DbcsAttribute dbcsAttribute);
     ROW& _GetFirstRow() noexcept;
-    ROW& _GetPrevRowNoWrap(const ROW& row);
     void _ExpandTextRow(til::inclusive_rect& selectionRow) const;
     DelimiterClass _GetDelimiterClassAt(const til::point pos, const std::wstring_view wordDelimiters) const;
     til::point _GetWordStartForAccessibility(const til::point target, const std::wstring_view wordDelimiters) const;
@@ -233,17 +231,22 @@ private:
     static void _AppendRTFText(std::ostringstream& contentBuilder, const std::wstring_view& text);
 
     Microsoft::Console::Render::Renderer& _renderer;
-    std::vector<ROW> _storage;
+
     std::unordered_map<uint16_t, std::wstring> _hyperlinkMap;
     std::unordered_map<std::wstring, uint16_t> _hyperlinkCustomIdMap;
-    std::unordered_map<size_t, std::wstring> _idsAndPatterns;
-    TextAttribute _currentAttributes;
-    Cursor _cursor;
-    wil::unique_virtualalloc_ptr<std::byte> _charBuffer = nullptr;
-    Microsoft::Console::Types::Viewport _size;
     uint16_t _currentHyperlinkId = 1;
+
+    std::unordered_map<size_t, std::wstring> _idsAndPatterns;
     size_t _currentPatternId = 0;
-    SHORT _firstRow = 0; // indexes top row (not necessarily 0)
+
+    std::vector<ROW> _storage;
+    wil::unique_virtualalloc_ptr<std::byte> _charBuffer;
+    TextAttribute _currentAttributes;
+    til::CoordType _firstRow = 0; // indexes top row (not necessarily 0)
+
+    Cursor _cursor;
+    Microsoft::Console::Types::Viewport _size;
+
     bool _isActiveBuffer = false;
 
 #ifdef UNIT_TESTING

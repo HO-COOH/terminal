@@ -54,7 +54,7 @@ enum class DelimiterClass
 
 struct RowTextIterator
 {
-    RowTextIterator(wchar_t* chars, uint16_t* indices, size_t cols, size_t beg, size_t end) noexcept :
+    RowTextIterator(wchar_t* chars, uint16_t* indices, uint16_t cols, uint16_t beg, uint16_t end) noexcept :
         _chars{ chars },
         _indices{ indices },
         _cols{ cols },
@@ -104,226 +104,52 @@ struct RowTextIterator
 private:
     const wchar_t* _chars;
     const uint16_t* _indices;
-    size_t _cols;
-    size_t _beg;
-    size_t _end;
+    uint16_t _cols;
+    uint16_t _beg;
+    uint16_t _end;
 };
 
 class ROW final
 {
 public:
     ROW(wchar_t* buffer, uint16_t* indices, uint16_t rowWidth, const TextAttribute& fillAttribute);
-
-    ~ROW()
-    {
-        if (_charsCapacity != _indicesCount)
-        {
-            delete[] _chars;
-        }
-        if (_dbcsPaddedColumns)
-        {
-            delete[] _dbcsPaddedColumns;
-        }
-    }
-
+    ~ROW();
+    
     void SetWrapForced(const bool wrap) noexcept { _wrapForced = wrap; }
     bool WasWrapForced() const noexcept { return _wrapForced; }
-
     void SetDoubleBytePadded(const bool doubleBytePadded) noexcept { _doubleBytePadded = doubleBytePadded; }
     bool WasDoubleBytePadded() const noexcept { return _doubleBytePadded; }
-
     LineRendition GetLineRendition() const noexcept { return _lineRendition; }
     void SetLineRendition(const LineRendition lineRendition) noexcept { _lineRendition = lineRendition; }
 
     bool Reset(const TextAttribute& Attr);
-
-    void ClearColumn(const size_t column);
-
+    void ClearColumn(const til::CoordType column);
+    void ClearCell(const til::CoordType column);
     OutputCellIterator WriteCells(OutputCellIterator it, const til::CoordType index, const std::optional<bool> wrap = std::nullopt, std::optional<til::CoordType> limitRight = std::nullopt);
+    bool SetAttrToEnd(const til::CoordType beginIndex, const TextAttribute attr);
+    void ReplaceAttrs(const TextAttribute& toBeReplacedAttr, const TextAttribute& replaceWith);
+    void Replace(const til::CoordType beginIndex, const til::CoordType endIndex, const TextAttribute& newAttr);
+    void ReplaceCharacters(til::CoordType x, til::CoordType width, const std::wstring_view& chars);
 
-    void Resize(wchar_t* chars, uint16_t* indices, const size_t newWidth);
+    void Resize(wchar_t* chars, uint16_t* indices, const uint16_t newWidth);
+    void TransferAttributes(const til::small_rle<TextAttribute, uint16_t, 1>& attr, til::CoordType newWidth);
 
-    const til::small_rle<TextAttribute, uint16_t, 1>& Attributes() const noexcept
-    {
-        return _attr;
-    }
+    const til::small_rle<TextAttribute, uint16_t, 1>& Attributes() const noexcept;
+    TextAttribute GetAttrByColumn(const til::CoordType column) const;
+    std::vector<uint16_t> GetHyperlinks() const;
+    uint16_t size() const noexcept;
+    til::CoordType MeasureLeft() const noexcept;
+    til::CoordType MeasureRight() const noexcept;
+    bool ContainsText() const noexcept;
+    InassignableStringView GlyphAt(til::CoordType column) const noexcept;
+    InassignableDbcsAttribute DbcsAttrAt(til::CoordType column) const noexcept;
+    InassignableStringView GetText() const noexcept;
+    DelimiterClass DelimiterClassAt(til::CoordType column, const std::wstring_view& wordDelimiters) const noexcept;
+    RowTextIterator CharsBegin() const noexcept;
+    RowTextIterator CharsEnd() const noexcept;
 
-    void TransferAttributes(const til::small_rle<TextAttribute, uint16_t, 1>& attr, uint16_t newWidth)
-    {
-        _attr = attr;
-        _attr.resize_trailing_extent(newWidth);
-    }
-
-    TextAttribute GetAttrByColumn(const uint16_t column) const
-    {
-        return _attr.at(column);
-    }
-
-    std::vector<uint16_t> GetHyperlinks() const
-    {
-        std::vector<uint16_t> ids;
-        for (const auto& run : _attr.runs())
-        {
-            if (run.value.IsHyperlink())
-            {
-                ids.emplace_back(run.value.GetHyperlinkId());
-            }
-        }
-        return ids;
-    }
-
-    bool SetAttrToEnd(const uint16_t beginIndex, const TextAttribute attr)
-    {
-        _attr.replace(gsl::narrow<uint16_t>(beginIndex), _attr.size(), attr);
-        return true;
-    }
-
-    void ReplaceAttrs(const TextAttribute& toBeReplacedAttr, const TextAttribute& replaceWith)
-    {
-        _attr.replace_values(toBeReplacedAttr, replaceWith);
-    }
-
-    void Replace(const uint16_t beginIndex, const uint16_t endIndex, const TextAttribute& newAttr)
-    {
-        _attr.replace(beginIndex, endIndex, newAttr);
-    }
-
-    void ReplaceCharacters(size_t x, size_t width, const std::wstring_view& chars);
-
-    size_t size() const noexcept
-    {
-        return _indicesCount;
-    }
-
-    size_t MeasureLeft() const noexcept
-    {
-        const auto beg = _chars;
-        const auto end = beg + _indices[_indicesCount];
-        auto it = beg;
-
-        for (; it != end; ++it)
-        {
-            if (*it != L' ')
-            {
-                break;
-            }
-        }
-
-        return static_cast<size_t>(it - beg);
-    }
-
-    size_t MeasureRight() const
-    {
-        const auto beg = _chars;
-        const auto end = beg + _indices[_indicesCount];
-        // We can always subtract 1, because _indicesCount/_charsCount are always greater 0.
-        auto it = end;
-
-        for (; it != beg; --it)
-        {
-            if (it[-1] != L' ')
-            {
-                break;
-            }
-        }
-
-        return static_cast<size_t>(it - beg);
-    }
-
-    void ClearCell(const size_t column);
-
-    bool ContainsText() const noexcept
-    {
-        auto it = _chars;
-        const auto end = it + _indices[_indicesCount];
-
-        for (; it != end; ++it)
-        {
-            if (*it != L' ')
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    InassignableStringView GlyphAt(size_t column) const noexcept
-    {
-        column = std::min(column, _indicesCount - 1);
-
-        const auto current = _indices[column];
-        while (column <= _indicesCount && _indices[++column] == current)
-        {
-        }
-
-        const auto len = gsl::narrow_cast<size_t>(_indices[column] - current);
-        return { _chars + current, len };
-    }
-
-    InassignableDbcsAttribute DbcsAttrAt(size_t column) const noexcept
-    {
-        column = std::min(column, _indicesCount - 1);
-
-        const auto idx = _indices[column];
-
-        auto attr = DbcsAttribute::Attribute::Single;
-        if (column > 0 && _indices[column - 1] == idx)
-        {
-            attr = DbcsAttribute::Attribute::Trailing;
-        }
-        else if (column < _indicesCount && _indices[column + 1] == idx)
-        {
-            attr = DbcsAttribute::Attribute::Leading;
-        }
-
-        return { attr };
-    }
-
-    InassignableStringView GetText() const
-    {
-        return { _chars, _indices[_indicesCount] };
-    }
-
-    const DelimiterClass DelimiterClassAt(size_t column, const std::wstring_view& wordDelimiters) const noexcept
-    {
-        column = std::min(column, _indicesCount - 1);
-
-        const auto glyph = _chars[_indices[column]];
-
-        if (glyph <= L' ')
-        {
-            return DelimiterClass::ControlChar;
-        }
-        else if (wordDelimiters.find(glyph) != std::wstring_view::npos)
-        {
-            return DelimiterClass::DelimiterChar;
-        }
-        else
-        {
-            return DelimiterClass::RegularChar;
-        }
-    }
-
-    RowTextIterator CharsBegin() const noexcept
-    {
-        return { _chars, _indices, _indicesCount, 0, 0 };
-    }
-
-    RowTextIterator CharsEnd() const noexcept
-    {
-        return { _chars, _indices, _indicesCount, _indicesCount, _indicesCount };
-    }
-
-    auto AttrBegin() const noexcept
-    {
-        return _attr.begin();
-    }
-
-    auto AttrEnd() const noexcept
-    {
-        return _attr.end();
-    }
+    auto AttrBegin() const noexcept { return _attr.begin(); }
+    auto AttrEnd() const noexcept { return _attr.end(); }
 
 #ifdef UNIT_TESTING
     friend constexpr bool operator==(const ROW& a, const ROW& b) noexcept;
@@ -331,22 +157,17 @@ public:
 #endif
 
 private:
-    void _resizeChars(size_t ch0, size_t ch1, size_t newCh1, size_t col3);
-
-    [[nodiscard]] bool* _getDbcsPaddedColumns() noexcept
-    {
-        if (!_dbcsPaddedColumns)
-        {
-            _dbcsPaddedColumns = new bool[_indicesCount]{};
-        }
-        return _dbcsPaddedColumns;
-    }
-
+    void _reset() noexcept;
+    void _resizeChars(uint16_t ch0, uint16_t ch1, size_t newCh1, uint16_t col3);
+    [[nodiscard]] bool* _getDbcsPaddedColumns() noexcept;
+    
+    wchar_t* _charsBuffer = nullptr;
     wchar_t* _chars = nullptr;
-    size_t _charsCapacity = 0;
     uint16_t* _indices = nullptr;
-    size_t _indicesCount = 0;
     bool* _dbcsPaddedColumns = nullptr;
+
+    uint16_t _charsCapacity = 0;
+    uint16_t _indicesCount = 0;
 
     til::small_rle<TextAttribute, uint16_t, 1> _attr;
 
